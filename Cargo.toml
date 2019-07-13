@@ -1,0 +1,9 @@
+[package]
+name = "shader-viewer"
+version = "0.1.0"
+authors = ["Ryp <ryp.sqrt@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+glium = "0.25"
+clap = "2.33"
