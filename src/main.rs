@@ -93,6 +93,7 @@ fn execute_main_loop(fragment_path: &str)
                 Result::Ok(_) => {},
                 Result::Err(err) => { print!("{}", err); }
             };
+            should_reload_shader = false;
         }
 
         let mut target = display.draw();
@@ -115,7 +116,7 @@ fn execute_main_loop(fragment_path: &str)
             Result::Err(_) => &default_program
         };
 
-        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, program_to_use, &uniforms, &Default::default()).unwrap();
+        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program_to_use, &uniforms, &Default::default()).unwrap();
         target.finish().unwrap();
 
         events_loop.poll_events(|ev| {
