@@ -74,14 +74,13 @@ fn execute_main_loop(fragment_path: &str)
         loop {
             match rx.try_recv() {
                 Ok(event) => match event {
-                    _ => {
+                    notify::DebouncedEvent::Write(path) | notify::DebouncedEvent::Create(path) => {
+                        println!("info: {}: file change detected.", path.to_str().unwrap());
                         should_reload_shader = true;
-                        println!("info: {}: file change detected.", fragment_path);
-                    }
+                    },
+                    _ => {}
                 },
-                Err(err) => match err {
-                    _ => { break; },
-                },
+                Err(_) => { break; }
             };
         }
 
