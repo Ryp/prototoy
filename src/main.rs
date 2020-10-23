@@ -1,62 +1,37 @@
 use std::time::SystemTime;
 
+extern crate notify;
+use notify::Watcher;
+
 extern crate clap;
 use clap::{Arg, App};
 
 #[macro_use]
 extern crate glium;
 
-fn load_fragment_code(fragment_path: &str) -> String
-{
-    let shadertoy_preamble = r#"
-        #version 300 es
-        precision highp float;
-
-        uniform vec3 iResolution;
-        uniform float iTime;
-        // uniform float iTimeDelta;
-        // uniform float iFrame;
-        // uniform float iChannelTime[4];
-        // uniform vec4 iMouse;
-        // uniform vec4 iDate;
-        // uniform float iSampleRate;
-        // uniform vec3 iChannelResolution[4];
-        // uniform samplerXX iChanneli;
-        out vec4 glFragColor;
-        #line 0
-    "#;
-
-    let shadertoy_postamble = r#"
-        void main() {
-            glFragColor.w = 1.0;
-            mainImage(glFragColor, gl_FragCoord.xy);
-            //mainImage(gl_FragColor, gl_FragCoord.xy);
-        }
-    "#;
-
-    // Read whole fragment shader file
-    let fragment_shader_string = std::fs::read(fragment_path).expect("Unable to read file");
-
-    // Add ShaderToy specific code
-    let mut fragment_code = String::new();
-    fragment_code.push_str(shadertoy_preamble);
-    fragment_code.push_str(&String::from_utf8(fragment_shader_string).unwrap());
-    fragment_code.push_str(shadertoy_postamble);
-
-    fragment_code
-}
-
 fn main()
 {
     // Argument parsing
-    let matches = App::new("CHIP-8 Emulator")
+    let matches = App::new("ShaderToy Viewer")
+        .arg(Arg::with_name("compile")
+             .help("only output the result of the compilation process")
+             .short("c"))
         .arg(Arg::with_name("shader_path")
+             .help("path of the GLSL shader")
              .required(true)
              .index(1))
         .get_matches();
 
     let fragment_path = matches.value_of("shader_path").unwrap();
+    let compile_only = matches.is_present("compile");
 
+    execute_main_loop(fragment_path, compile_only);
+}
+
+use std::sync::mpsc::channel;
+
+fn execute_main_loop(fragment_path: &str, compile_only: bool)
+{
     use glium::{glutin, Surface};
 
     let mut events_loop = glium::glutin::EventsLoop::new();
@@ -65,21 +40,11 @@ fn main()
     let display = glium::Display::new(wb, cb, &events_loop).unwrap();
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
 
-    let vertex_shader_src = r#"
-        #version 300 es
-        precision highp float;
+    let vertex_code = std::fs::read_to_string("./shader/shadertoy.vert.glsl").expect("Unable to read file");
 
-        void main() {
-            vec2 vertices[3];
-            vertices[0] = vec2(-1.0, 1.0);
-            vertices[1] = vec2( 3.0, 1.0);
-            vertices[2] = vec2(-1.0,-3.0);
-            gl_Position = vec4(vertices[gl_VertexID], 0.0, 1.0);
-        }
-    "#;
-    let fragment_code = load_fragment_code(fragment_path);
-
-    let program = match glium::Program::from_source(&display, vertex_shader_src, &fragment_code, None) {
+    let default_fragment_path = "./shader/default.frag.glsl";
+    let default_fragment_code = load_fragment_code(default_fragment_path);
+    let default_program = match glium::Program::from_source(&display, &vertex_code, &default_fragment_code, None) {
         Result::Ok(val) => val,
         Result::Err(err) => {
             print!("{}", err);
@@ -87,10 +52,67 @@ fn main()
         }
     };
 
+    let mut fragment_code = load_fragment_code(fragment_path);
+    let mut program = match glium::Program::from_source(&display, &vertex_code, &fragment_code, None) {
+        Result::Ok(val) => val,
+        Result::Err(err) => {
+            print!("{}", err);
+
+            if compile_only {
+                std::process::exit(1);
+            }
+
+            default_program
+        }
+    };
+
+    if compile_only {
+        return
+    }
+
     let time = SystemTime::now();
     let mut is_running = true;
+    let mut should_reload_shader = false;
+
+    let (tx, rx) = channel();
+
+    // Automatically select the best implementation for your platform.
+    let mut watcher: notify::RecommendedWatcher = notify::Watcher::new(tx, std::time::Duration::from_millis(20)).unwrap();
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    // TODO only watch the file we are interested in
+    watcher.watch(".", notify::RecursiveMode::Recursive).unwrap();
 
     while is_running {
+        // Watch FS for changes to our file
+        // TODO improve very weak error handling
+        loop {
+            match rx.try_recv() {
+                Ok(event) => match event {
+                    _ => {
+                        should_reload_shader = true;
+                        println!("info: {}: file change detected.", fragment_path);
+                    }
+                },
+                Err(err) => match err {
+                    _ => { break; },
+                },
+            };
+        }
+
+        if should_reload_shader {
+            fragment_code = load_fragment_code(fragment_path);
+            program = match glium::Program::from_source(&display, &vertex_code, &fragment_code, None) {
+                Result::Ok(val) => val,
+                Result::Err(err) => {
+                    print!("{}", err);
+
+                    default_program
+                }
+            };
+        }
+
         let mut target = display.draw();
 
         let framebuffer_extent = display.get_framebuffer_dimensions();
@@ -117,4 +139,16 @@ fn main()
             }
         });
     }
+}
+
+fn load_fragment_code(fragment_path: &str) -> String
+{
+    // Load ShaderToy specific code
+    let shadertoy_preamble = std::fs::read_to_string("./shader/shadertoy_intro.frag.glsl").expect("Unable to read file");
+    let shadertoy_postamble = std::fs::read_to_string("./shader/shadertoy_outro.frag.glsl").expect("Unable to read file");
+
+    // Read whole fragment shader file
+    let fragment_shader_string = std::fs::read_to_string(fragment_path).expect("Unable to read file");
+
+    shadertoy_preamble + &fragment_shader_string + &shadertoy_postamble
 }

@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 glium = "0.25"
 clap = "2.33"
+notify = "4.0"
