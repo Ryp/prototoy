@@ -13,9 +13,6 @@ fn main()
 {
     // Argument parsing
     let matches = App::new("ShaderToy Viewer")
-        .arg(Arg::with_name("compile")
-             .help("only output the result of the compilation process")
-             .short("c"))
         .arg(Arg::with_name("shader_path")
              .help("path of the GLSL shader")
              .required(true)
@@ -23,14 +20,13 @@ fn main()
         .get_matches();
 
     let fragment_path = matches.value_of("shader_path").unwrap();
-    let compile_only = matches.is_present("compile");
 
-    execute_main_loop(fragment_path, compile_only);
+    execute_main_loop(fragment_path);
 }
 
 use std::sync::mpsc::channel;
 
-fn execute_main_loop(fragment_path: &str, compile_only: bool)
+fn execute_main_loop(fragment_path: &str)
 {
     use glium::{glutin, Surface};
 
@@ -53,22 +49,12 @@ fn execute_main_loop(fragment_path: &str, compile_only: bool)
     };
 
     let mut fragment_code = load_fragment_code(fragment_path);
-    let mut program = match glium::Program::from_source(&display, &vertex_code, &fragment_code, None) {
-        Result::Ok(val) => val,
-        Result::Err(err) => {
-            print!("{}", err);
+    let mut program = glium::Program::from_source(&display, &vertex_code, &fragment_code, None);
 
-            if compile_only {
-                std::process::exit(1);
-            }
-
-            default_program
-        }
+    match program {
+        Result::Ok(val) => {},
+        Result::Err(err) => { print!("{}", err); }
     };
-
-    if compile_only {
-        return
-    }
 
     let time = SystemTime::now();
     let mut is_running = true;
@@ -103,13 +89,11 @@ fn execute_main_loop(fragment_path: &str, compile_only: bool)
 
         if should_reload_shader {
             fragment_code = load_fragment_code(fragment_path);
-            program = match glium::Program::from_source(&display, &vertex_code, &fragment_code, None) {
-                Result::Ok(val) => val,
-                Result::Err(err) => {
-                    print!("{}", err);
+            program = glium::Program::from_source(&display, &vertex_code, &fragment_code, None);
 
-                    default_program
-                }
+            match program {
+                Result::Ok(val) => {},
+                Result::Err(err) => { print!("{}", err); }
             };
         }
 
@@ -126,7 +110,13 @@ fn execute_main_loop(fragment_path: &str, compile_only: bool)
         };
 
         target.clear_color(0.0, 0.0, 1.0, 1.0);
-        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program, &uniforms, &Default::default()).unwrap();
+
+        let program_to_use = match program {
+            Result::Ok(val) => val,
+            Result::Err(err) => default_program
+        };
+
+        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program_to_use, &uniforms, &Default::default()).unwrap();
         target.finish().unwrap();
 
         events_loop.poll_events(|ev| {
