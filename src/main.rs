@@ -24,8 +24,6 @@ fn main()
     execute_main_loop(fragment_path);
 }
 
-use std::sync::mpsc::channel;
-
 fn execute_main_loop(fragment_path: &str)
 {
     use glium::{glutin, Surface};
@@ -51,8 +49,8 @@ fn execute_main_loop(fragment_path: &str)
     let mut fragment_code = load_fragment_code(fragment_path);
     let mut program = glium::Program::from_source(&display, &vertex_code, &fragment_code, None);
 
-    match program {
-        Result::Ok(val) => {},
+    match &program {
+        Result::Ok(_) => {},
         Result::Err(err) => { print!("{}", err); }
     };
 
@@ -60,7 +58,7 @@ fn execute_main_loop(fragment_path: &str)
     let mut is_running = true;
     let mut should_reload_shader = false;
 
-    let (tx, rx) = channel();
+    let (tx, rx) = std::sync::mpsc::channel();
 
     // Automatically select the best implementation for your platform.
     let mut watcher: notify::RecommendedWatcher = notify::Watcher::new(tx, std::time::Duration::from_millis(20)).unwrap();
@@ -91,8 +89,8 @@ fn execute_main_loop(fragment_path: &str)
             fragment_code = load_fragment_code(fragment_path);
             program = glium::Program::from_source(&display, &vertex_code, &fragment_code, None);
 
-            match program {
-                Result::Ok(val) => {},
+            match &program {
+                Result::Ok(_) => {},
                 Result::Err(err) => { print!("{}", err); }
             };
         }
@@ -111,12 +109,13 @@ fn execute_main_loop(fragment_path: &str)
 
         target.clear_color(0.0, 0.0, 1.0, 1.0);
 
-        let program_to_use = match program {
-            Result::Ok(val) => val,
-            Result::Err(err) => default_program
+        // Allow fallback on default program when there's an error
+        let program_to_use = match &program {
+            Result::Ok(val) => &val,
+            Result::Err(_) => &default_program
         };
 
-        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program_to_use, &uniforms, &Default::default()).unwrap();
+        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, program_to_use, &uniforms, &Default::default()).unwrap();
         target.finish().unwrap();
 
         events_loop.poll_events(|ev| {
