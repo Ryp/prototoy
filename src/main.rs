@@ -39,8 +39,8 @@ fn execute_main_loop(fragment_path: &str)
     let default_fragment_path = "./shader/default.frag.glsl";
     let default_fragment_code = load_fragment_code(default_fragment_path);
     let default_program = match glium::Program::from_source(&display, &vertex_code, &default_fragment_code, None) {
-        Result::Ok(val) => val,
-        Result::Err(err) => {
+        Ok(val) => val,
+        Err(err) => {
             print!("{}", err);
             panic!("error: {}: compilation failed.", fragment_path);
         }
@@ -50,8 +50,8 @@ fn execute_main_loop(fragment_path: &str)
     let mut program = glium::Program::from_source(&display, &vertex_code, &fragment_code, None);
 
     match &program {
-        Result::Ok(_) => {},
-        Result::Err(err) => { print!("{}", err); }
+        Ok(_) => {},
+        Err(err) => { print!("{}", err); }
     };
 
     let time = SystemTime::now();
@@ -89,8 +89,8 @@ fn execute_main_loop(fragment_path: &str)
             program = glium::Program::from_source(&display, &vertex_code, &fragment_code, None);
 
             match &program {
-                Result::Ok(_) => {},
-                Result::Err(err) => { print!("{}", err); }
+                Ok(_) => {},
+                Err(err) => { print!("{}", err); }
             };
             should_reload_shader = false;
         }
@@ -111,8 +111,8 @@ fn execute_main_loop(fragment_path: &str)
 
         // Allow fallback on default program when there's an error
         let program_to_use = match &program {
-            Result::Ok(val) => &val,
-            Result::Err(_) => &default_program
+            Ok(val) => &val,
+            Err(_) => &default_program
         };
 
         target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program_to_use, &uniforms, &Default::default()).unwrap();
