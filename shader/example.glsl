@@ -1,10 +1,10 @@
 // NOTE: Supported builtins
 // uniform vec3 iResolution;
 // uniform float iTime;
+// uniform float iFrame;
 
 // FIXME: Unsupported Shadertoy builtins
 // uniform float iTimeDelta;
-// uniform float iFrame;
 // uniform float iChannelTime[4];
 // uniform vec4 iMouse;
 // uniform vec4 iDate;

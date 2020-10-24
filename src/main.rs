@@ -54,6 +54,7 @@ fn execute_main_loop(fragment_path: &str)
         Err(err) => { print!("{}", err); }
     };
 
+    let mut frame_index : u64 = 0;
     let time = SystemTime::now();
     let mut is_running = true;
     let mut should_reload_shader = false;
@@ -105,6 +106,7 @@ fn execute_main_loop(fragment_path: &str)
         let uniforms = uniform! {
             iResolution: [framebuffer_extent.0 as f32, framebuffer_extent.1 as f32, 1f32],
             iTime: time_secs,
+            iFrame: frame_index as f32,
         };
 
         target.clear_color(0.0, 0.0, 1.0, 1.0);
@@ -127,6 +129,8 @@ fn execute_main_loop(fragment_path: &str)
                 _ => (),
             }
         });
+
+        frame_index += 1;
     }
 }
 

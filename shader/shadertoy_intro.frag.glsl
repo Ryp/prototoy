@@ -4,7 +4,7 @@ precision highp float;
 uniform vec3 iResolution;
 uniform float iTime;
 // uniform float iTimeDelta;
-// uniform float iFrame;
+uniform float iFrame;
 // uniform float iChannelTime[4];
 // uniform vec4 iMouse;
 // uniform vec4 iDate;
