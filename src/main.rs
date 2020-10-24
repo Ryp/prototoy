@@ -58,6 +58,7 @@ fn execute_main_loop(fragment_path: &str)
     let time = SystemTime::now();
     let mut is_running = true;
     let mut should_reload_shader = false;
+    let mut should_render = true;
 
     let (tx, rx) = std::sync::mpsc::channel();
 
@@ -94,30 +95,39 @@ fn execute_main_loop(fragment_path: &str)
                 Err(err) => { print!("{}", err); }
             };
             should_reload_shader = false;
+            should_render = true;
         }
 
-        let mut target = display.draw();
+        if should_render {
+            let mut target = display.draw();
 
-        let framebuffer_extent = display.get_framebuffer_dimensions();
+            let framebuffer_extent = display.get_framebuffer_dimensions();
 
-        let time_msecs = time.elapsed().expect("Time error").as_millis();
-        let time_secs: f32 = time_msecs as f32 / 1000.0;
+            let time_msecs = time.elapsed().expect("Time error").as_millis();
+            let time_secs: f32 = time_msecs as f32 / 1000.0;
 
-        let uniforms = uniform! {
-            iResolution: [framebuffer_extent.0 as f32, framebuffer_extent.1 as f32, 1f32],
-            iTime: time_secs,
-            iFrame: frame_index as f32,
-        };
+            let uniforms = uniform! {
+                iResolution: [framebuffer_extent.0 as f32, framebuffer_extent.1 as f32, 1f32],
+                iTime: time_secs,
+                iFrame: frame_index as f32,
+            };
 
-        // Allow falling back on default program when there's a compilation error
-        let program_to_use = match &program {
-            Ok(val) => &val,
-            Err(_) => &default_program
-        };
+            // Allow falling back on default program when there's a compilation error
+            let program_to_use = match &program {
+                Ok(val) => &val,
+                Err(_) => &default_program
+            };
 
-        target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program_to_use, &uniforms, &Default::default()).unwrap();
-        target.finish().unwrap();
+            target.draw(glium::vertex::EmptyVertexAttributes{len:3}, &indices, &program_to_use, &uniforms, &Default::default()).unwrap();
+            target.finish().unwrap();
 
+            should_render = false;
+        }
+        else {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+
+        // Process window events
         events_loop.poll_events(|ev| {
             match ev {
                 glutin::Event::WindowEvent { event, .. } => match event {
