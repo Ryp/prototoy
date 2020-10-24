@@ -1,7 +1,7 @@
 [package]
-name = "shader-viewer"
-version = "0.1.0"
-authors = ["Ryp <ryp.sqrt@gmail.com>"]
+name = "prototoy"
+version = "1.0.0"
+authors = ["Thibault Schueller <thibault.schueller@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
