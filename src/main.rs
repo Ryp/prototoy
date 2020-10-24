@@ -109,9 +109,7 @@ fn execute_main_loop(fragment_path: &str)
             iFrame: frame_index as f32,
         };
 
-        target.clear_color(0.0, 0.0, 1.0, 1.0);
-
-        // Allow fallback on default program when there's an error
+        // Allow falling back on default program when there's a compilation error
         let program_to_use = match &program {
             Ok(val) => &val,
             Err(_) => &default_program
