@@ -13,18 +13,22 @@ fn main()
 {
     // Argument parsing
     let matches = App::new("ShaderToy Viewer")
+        .arg(Arg::with_name("static")
+            .short("s")
+            .help("only render new frame when the shader changes"))
         .arg(Arg::with_name("shader_path")
-             .help("path of the GLSL shader")
-             .required(true)
-             .index(1))
+            .help("path of the GLSL shader")
+            .required(true)
+            .index(1))
         .get_matches();
 
     let fragment_path = matches.value_of("shader_path").unwrap();
+    let is_static_image = matches.is_present("static");
 
-    execute_main_loop(fragment_path);
+    execute_main_loop(fragment_path, is_static_image);
 }
 
-fn execute_main_loop(fragment_path: &str)
+fn execute_main_loop(fragment_path: &str, is_static_image: bool)
 {
     use glium::{glutin, Surface};
 
@@ -95,6 +99,10 @@ fn execute_main_loop(fragment_path: &str)
                 Err(err) => { print!("{}", err); }
             };
             should_reload_shader = false;
+            should_render = true;
+        }
+
+        if !is_static_image {
             should_render = true;
         }
 
